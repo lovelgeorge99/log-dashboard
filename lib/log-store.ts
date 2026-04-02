@@ -1,9 +1,11 @@
-import { LogEntry, LogFilter, LogStats, LogLevel } from './types';
+import { LogEntry, LogFilter, LogStats, LogLevel } from "./types";
 
 const MAX_LOGS = 1000;
 
 class LogStore {
   private logs: LogEntry[] = [];
+  private initialized = false;
+
   private static instance: LogStore;
 
   private constructor() {}
@@ -17,12 +19,15 @@ class LogStore {
 
   addLog(log: LogEntry): void {
     this.logs.unshift(log);
+    console.log(this.logs.length);
     if (this.logs.length > MAX_LOGS) {
       this.logs = this.logs.slice(0, MAX_LOGS);
     }
   }
 
   addLogs(logs: LogEntry[]): void {
+    this.initialized = true;
+
     logs.forEach((log) => this.addLog(log));
   }
 
@@ -43,7 +48,7 @@ class LogStore {
         (log) =>
           log.message.toLowerCase().includes(searchLower) ||
           log.service.toLowerCase().includes(searchLower) ||
-          log.traceId?.toLowerCase().includes(searchLower)
+          log.traceId?.toLowerCase().includes(searchLower),
       );
     }
 
@@ -52,7 +57,7 @@ class LogStore {
       result = result.filter((log) => new Date(log.timestamp) > sinceDate);
     }
 
-    const limit = filter?.limit || 100;
+    const limit = filter?.limit || 10;
     return result.slice(0, limit);
   }
 
@@ -62,8 +67,11 @@ class LogStore {
 
   clearLogs(): void {
     this.logs = [];
+    this.initialized = true;
   }
-
+  isInitialized(): boolean {
+    return this.initialized;
+  }
   getStats(): LogStats {
     const byLevel: Record<LogLevel, number> = {
       error: 0,
@@ -75,7 +83,10 @@ class LogStore {
     const byService: Record<string, number> = {};
 
     // Group logs by 1-minute intervals for timeline
-    const timelineMap = new Map<string, { error: number; warn: number; info: number; debug: number }>();
+    const timelineMap = new Map<
+      string,
+      { error: number; warn: number; info: number; debug: number }
+    >();
 
     this.logs.forEach((log) => {
       byLevel[log.level]++;
